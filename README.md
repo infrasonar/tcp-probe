@@ -8,4 +8,3 @@
 ```
 docker build -t tcp-probe . --no-cache
 ```
-# tcp-probe
