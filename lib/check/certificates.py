@@ -156,7 +156,7 @@ async def check_certificates(
             data = await run(params)
             response_data = parse(data, address)
             if not response_data['sslCert']:
-                raise CheckException((
+                raise IgnoreResultException((
                     'Checked Ports: '
                     f"{' '.join(map(str, check_certificate_ports))}"
 
