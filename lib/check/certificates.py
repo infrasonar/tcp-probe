@@ -156,14 +156,13 @@ async def check_certificates(
             data = await run(params)
             response_data = parse(data, address)
             if not response_data['sslCert']:
-                raise IgnoreResultException((
-                    'Checked Ports: '
-                    f"{' '.join(map(str, check_certificate_ports))}"
-
-                ))
+                raise IgnoreResultException()
 
         except ET.ParseError as e:
             raise CheckException(f'Nmap parse error: {e.msg}')
+
+        except IgnoreResultException:
+            raise
 
         except Exception as e:
             error_msg = str(e) or type(e).__name__
@@ -172,5 +171,4 @@ async def check_certificates(
 
         return response_data
     else:
-        raise IgnoreResultException(
-            'CheckCertificates did not run; no ports are provided')
+        raise IgnoreResultException()

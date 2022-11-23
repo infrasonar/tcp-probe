@@ -73,5 +73,4 @@ async def check_ports(
 
         return response_data
     else:
-        raise IgnoreResultException(
-            'CheckPorts did not run; no ports are provided')
+        raise IgnoreResultException()
