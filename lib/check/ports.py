@@ -6,7 +6,7 @@ from ..nmapquery import run
 
 
 def parse(data):
-    response_data = []
+    items = []
     root = ET.fromstring(data)
     for host in root.findall('host'):
         for port in host.findall('ports/port'):
@@ -15,14 +15,19 @@ def parse(data):
             state = port.find('state')
             name = f'{protocol}:{portid}'
 
-            response_data.append({
+            items.append({
                 'name': name,  # (str)
                 'state': state.attrib['state'],  # (str)
                 'reason': state.attrib['reason'],  # (str)
                 'reasonTTL': int(state.attrib['reason_ttl'])  # (int)
             })
 
-    return response_data
+    if not items:
+        raise CheckException(
+            'No result for the configured TCP ports; '
+            'Most likely the host is down')
+
+    return items
 
 
 async def check_ports(
@@ -59,10 +64,10 @@ async def check_ports(
             f"-p {','.join(map(str, check_ports))}",
             address
         ]
-        response_data = {}
+        check_data = {}
         try:
             data = await run(params)
-            response_data['port'] = parse(data)
+            check_data['port'] = parse(data)
 
         except ET.ParseError as e:
             raise CheckException(f'Nmap parse error: {e.msg}')
@@ -75,6 +80,6 @@ async def check_ports(
             logging.exception(f'query error: {error_msg}; {asset}')
             raise CheckException(error_msg)
 
-        return response_data
+        return check_data
     else:
         raise IgnoreResultException()
