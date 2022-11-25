@@ -54,6 +54,7 @@ async def check_ports(
             # while the higher-numbered ones are rarely useful.
             # default = 7
             '-oX',
+            '-Pn',
             '-',
             f"-p {','.join(map(str, check_ports))}",
             address
