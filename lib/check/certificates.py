@@ -161,7 +161,7 @@ async def check_certificates(
         except ET.ParseError as e:
             raise CheckException(f'Nmap parse error: {e.msg}')
 
-        except IgnoreResultException:
+        except (CheckException, IgnoreResultException):
             raise
 
         except Exception as e:

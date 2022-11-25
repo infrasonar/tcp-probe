@@ -1,6 +1,7 @@
 import asyncio
 import os
 import subprocess
+from libprobe.exceptions import CheckException
 
 DEFAULT_MAX_WORKERS = (os.cpu_count() or 1) * 5
 SEMAPHORE = asyncio.Semaphore(value=DEFAULT_MAX_WORKERS)
@@ -14,14 +15,17 @@ async def run(params):
                 run_cmd(params),
                 timeout=max_runtime
             )
+        except CheckException:
+            raise
         except asyncio.TimeoutError:
-            raise Exception('Check timed out.')
+            raise CheckException('Nmap timed out')
         except subprocess.CalledProcessError as e:
-            raise Exception(f'Error: {e.returncode}, {e.stderr}')
+            raise CheckException(f'Error: {e.returncode}, {e.stderr}')
         except FileNotFoundError:
-            raise Exception('Nmap not installed in system')
+            raise CheckException('Nmap not installed in system')
         except Exception as e:
-            raise Exception(f'Check error: {e.__class__.__name__}: {e}')
+            msg = str(e) or type(e).__name__
+            raise CheckException(msg)
         else:
             return state_data
 
@@ -36,12 +40,8 @@ async def run_cmd(params):
     stdout, stderr = await process.communicate()
 
     if process.returncode != 0:
-        raise Exception(
-            (
-                f'Failed: {params}, pid={process.pid}, '
-                f'result: {stderr.decode().strip()}'
-            ),
-            flush=True,
-        )
+        msg = stderr.decode().strip() or 'missing error output'
+        raise CheckException(
+                f'Params={params}, pid={process.pid}, output={msg}')
 
     return stdout

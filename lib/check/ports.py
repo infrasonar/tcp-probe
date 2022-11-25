@@ -53,8 +53,8 @@ async def check_ports(
             # against a wide variety of common services,
             # while the higher-numbered ones are rarely useful.
             # default = 7
-            '-oX',
             '-Pn',
+            '-oX',
             '-',
             f"-p {','.join(map(str, check_ports))}",
             address
@@ -66,6 +66,9 @@ async def check_ports(
 
         except ET.ParseError as e:
             raise CheckException(f'Nmap parse error: {e.msg}')
+
+        except CheckException:
+            raise
 
         except Exception as e:
             error_msg = str(e) or type(e).__name__
