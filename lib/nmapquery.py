@@ -3,16 +3,19 @@ import os
 import subprocess
 from libprobe.exceptions import CheckException
 
-DEFAULT_MAX_WORKERS = (os.cpu_count() or 1) * 5
+DEFAULT_MAX_WORKERS = (os.cpu_count() or 1) * 10
 SEMAPHORE = asyncio.Semaphore(value=DEFAULT_MAX_WORKERS)
 
 
 async def run(params):
+    if SEMAPHORE.locked():
+        logging.warning(
+            "probe is temporary locked; too many running nmap requests")
     async with SEMAPHORE:
-        max_runtime = 60  # 60 seconds
+        max_runtime = 48  # 48 seconds (80% smallest interval)
         try:
             state_data = await asyncio.wait_for(
-                run_cmd(params),
+                _run_cmd(params),
                 timeout=max_runtime
             )
         except CheckException:
@@ -30,7 +33,7 @@ async def run(params):
             return state_data
 
 
-async def run_cmd(params):
+async def _run_cmd(params):
     process = await asyncio.create_subprocess_exec(
         *params,
         stdout=asyncio.subprocess.PIPE,
