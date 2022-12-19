@@ -123,10 +123,15 @@ def parse(string, address):
             ssl_cert.extend(cert)
             ssl_enum_ciphers.extend(enum_ciphers)
 
-    return {
-        'sslCert': ssl_cert,
-        'sslEnumCiphers': ssl_enum_ciphers,
-    }
+    result = {}
+
+    if ssl_cert:
+        result['sslCert'] = ssl_cert
+
+    if ssl_enum_ciphers:
+        result['sslEnumCiphers'] = ssl_enum_ciphers
+
+    return result
 
 
 async def check_certificates(
@@ -155,7 +160,9 @@ async def check_certificates(
         try:
             data = await run(params)
             response_data = parse(data, address)
-            if not response_data['sslCert']:
+            if not response_data:
+                logging.waning(
+                    f'Both sslCert and sslEnumCiphers empty; {asset}')
                 raise IgnoreResultException()
 
         except ET.ParseError as e:
