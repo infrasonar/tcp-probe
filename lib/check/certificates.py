@@ -161,7 +161,7 @@ async def check_certificates(
             data = await run(params)
             response_data = parse(data, address)
             if not response_data:
-                logging.waning(
+                logging.warning(
                     f'Both sslCert and sslEnumCiphers empty; {asset}')
                 raise IgnoreResultException()
 
