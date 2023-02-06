@@ -123,10 +123,15 @@ def parse(string, address):
             ssl_cert.extend(cert)
             ssl_enum_ciphers.extend(enum_ciphers)
 
-    return {
-        'sslCert': ssl_cert,
-        'sslEnumCiphers': ssl_enum_ciphers,
-    }
+    result = {}
+
+    if ssl_cert:
+        result['sslCert'] = ssl_cert
+
+    if ssl_enum_ciphers:
+        result['sslEnumCiphers'] = ssl_enum_ciphers
+
+    return result
 
 
 async def check_certificates(
@@ -155,15 +160,16 @@ async def check_certificates(
         try:
             data = await run(params)
             response_data = parse(data, address)
-            if not response_data['sslCert']:
-                raise IgnoreResultException((
-                    'Checked Ports: '
-                    f"{' '.join(map(str, check_certificate_ports))}"
-
-                ))
+            if not response_data:
+                logging.warning(
+                    f'Both sslCert and sslEnumCiphers empty; {asset}')
+                raise IgnoreResultException()
 
         except ET.ParseError as e:
             raise CheckException(f'Nmap parse error: {e.msg}')
+
+        except (CheckException, IgnoreResultException):
+            raise
 
         except Exception as e:
             error_msg = str(e) or type(e).__name__
@@ -172,5 +178,4 @@ async def check_certificates(
 
         return response_data
     else:
-        raise IgnoreResultException(
-            'CheckCertificates did not run; no ports are provided')
+        raise IgnoreResultException()
