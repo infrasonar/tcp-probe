@@ -82,4 +82,4 @@ async def check_ports(
 
         return check_data
     else:
-        raise IgnoreResultException()
+        return {'port': []}

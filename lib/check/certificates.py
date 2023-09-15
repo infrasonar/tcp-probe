@@ -178,4 +178,4 @@ async def check_certificates(
 
         return response_data
     else:
-        raise IgnoreResultException()
+        return {}  # return empty check result; types are optional
