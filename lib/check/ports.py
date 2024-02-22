@@ -1,7 +1,7 @@
 import logging
 import xml.etree.ElementTree as ET
 from libprobe.asset import Asset
-from libprobe.exceptions import CheckException, IgnoreResultException
+from libprobe.exceptions import CheckException, NoCountException
 from ..nmapquery import run
 
 
@@ -82,4 +82,4 @@ async def check_ports(
 
         return check_data
     else:
-        return {'port': []}
+        raise NoCountException('no ports', {'port': []})

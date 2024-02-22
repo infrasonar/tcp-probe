@@ -1,7 +1,8 @@
 import logging
 import xml.etree.ElementTree as ET
 from libprobe.asset import Asset
-from libprobe.exceptions import CheckException, IgnoreResultException
+from libprobe.exceptions import CheckException, IgnoreResultException, \
+    NoCountException
 from ..exceptions import UnresolvableException
 from ..nmapquery import run
 from ..utils import get_ts_from_time_str, get_ts_utc_now
@@ -176,6 +177,7 @@ async def check_certificates(
             logging.exception(f'query error: {error_msg}; {asset}')
             raise CheckException(error_msg)
 
-        return response_data
+        raise NoCountException('do not count certificates', response_data)
     else:
-        return {}  # return empty check result; types are optional
+        # return empty check result; types are optional
+        raise NoCountException('no certificates', {})
