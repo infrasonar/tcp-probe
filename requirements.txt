@@ -1,1 +1,1 @@
-libprobe==0.2.36
+libprobe==0.3.0
