@@ -3,7 +3,6 @@ import xml.etree.ElementTree as ET
 from libprobe.asset import Asset
 from libprobe.exceptions import CheckException, IgnoreResultException, \
     NoCountException
-from ..exceptions import UnresolvableException
 from ..nmapquery import run
 from ..utils import get_ts_from_time_str, get_ts_utc_now
 
@@ -86,11 +85,13 @@ def _parse_ciphers_info(node, host, port):
 def _parse_xml(data):
     root = ET.fromstring(data)
     runstats = root.find('runstats/finished')
-    if runstats.attrib['exit'] != 'success':
-        raise Exception(data)
+    exit_status = runstats.attrib['exit']
+    if exit_status != 'success':
+        msg = f'Nmap exit status: {exit_status}'
+        raise Exception(msg)
     summary = runstats.attrib['summary']
     if '; 0 IP addresses' in summary:
-        raise UnresolvableException(summary)
+        raise Exception(summary)
 
     return root
 
@@ -105,7 +106,7 @@ def parse(string, address):
             hostname = host.find(
                 'hostnames/hostname').attrib['name']
         except Exception:
-            hostname = address  # TODO waarom geen exceptie raisen hier?
+            hostname = address
 
         for port in host.iter('port'):
             portid = port.attrib['portid']
