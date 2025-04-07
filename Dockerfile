@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM python:3.12.9
 RUN apt update && apt install -y nmap
 ADD . /code
 WORKDIR /code
