@@ -1,6 +1,7 @@
 import logging
 import xml.etree.ElementTree as ET
 from libprobe.asset import Asset
+from libprobe.check import Check
 from libprobe.exceptions import CheckException, IgnoreResultException, \
     NoCountException
 from ..nmapquery import run
@@ -22,10 +23,14 @@ def _parse_cert_info(node, host, port):
                 raise Exception(f'unable to find {pth}')
         return nod.text
 
-    not_before = get_ts_from_time_str(
-        get_text('validity', 'notBefore')[:19])
-    not_after = get_ts_from_time_str(
-        get_text('validity', 'notAfter')[:19])
+    _not_before = get_text('validity', 'notBefore')
+    assert _not_before is not None
+    not_before = get_ts_from_time_str(_not_before[:19])
+
+    _not_after = get_text('validity', 'notAfter')
+    assert _not_after is not None
+    not_after = get_ts_from_time_str(_not_after[:19])
+
     now = get_ts_utc_now()
 
     is_valid = not_before <= now <= not_after
@@ -55,6 +60,7 @@ def _parse_cert_info(node, host, port):
 
 def _parse_ciphers_info(node, host, port):
     response_data = []
+    cert = f'{host}:{port}'
     if node:
         for protocol in node.findall('table'):
             ciphers = []
@@ -69,9 +75,10 @@ def _parse_ciphers_info(node, host, port):
                 warnings.append(warning.text)
 
             protocol = protocol.attrib["key"]
-            name = f'{host}:{port}-{protocol}'
+            name = f'{cert}-{protocol}'
             response_data.append({
                 'name': name,
+                'sslCert': cert,
                 'protocol': protocol,
                 'ciphers': '\r\n'.join(ciphers),
                 'warnings': '\r\n'.join(warnings),
@@ -85,6 +92,7 @@ def _parse_ciphers_info(node, host, port):
 def _parse_xml(data):
     root = ET.fromstring(data)
     runstats = root.find('runstats/finished')
+    assert runstats is not None, 'failed to find runstats/finished'
     exit_status = runstats.attrib['exit']
     if exit_status != 'success':
         msg = f'Nmap exit status: {exit_status}'
@@ -103,8 +111,9 @@ def parse(string, address):
 
     for host in root.iter('host'):
         try:
-            hostname = host.find(
-                'hostnames/hostname').attrib['name']
+            _hostname = host.find('hostnames/hostname')
+            assert _hostname is not None, 'failed to find hostnames/hostname'
+            hostname = _hostname.attrib['name']
         except Exception:
             hostname = address
 
@@ -136,49 +145,52 @@ def parse(string, address):
     return result
 
 
-async def check_certificates(
-        asset: Asset,
-        asset_config: dict,
-        check_config: dict) -> dict:
-    address = check_config.get('address')
-    if not address:
-        address = asset.name
-    check_certificate_ports = check_config.get('checkCertificatePorts')
+class CheckCertificates(Check):
+    key = 'certificates'
+    unchanged_eol = 14400
 
-    logging.debug(
-        f'run certificate check: {address} ports: {check_certificate_ports}')
-    if check_certificate_ports:
-        params = [
-            'nmap',
-            '--script',
-            '+ssl-cert,+ssl-enum-ciphers',
-            '-oX',
-            '-',
-            f"-p {','.join(map(str, check_certificate_ports))}",
-            address
-        ]
+    @staticmethod
+    async def run(asset: Asset, local_config: dict, config: dict) -> dict:
+        address = config.get('address')
+        if not address:
+            address = asset.name
+        check_certificate_ports = config.get('checkCertificatePorts')
 
-        response_data = {}
-        try:
-            data = await run(params)
-            response_data = parse(data, address)
-            if not response_data:
-                logging.warning(
-                    f'Both sslCert and sslEnumCiphers empty; {asset}')
-                raise IgnoreResultException()
+        logging.debug(
+            f'run certificate check: {address} '
+            f'ports: {check_certificate_ports}')
+        if check_certificate_ports:
+            params = [
+                'nmap',
+                '--script',
+                '+ssl-cert,+ssl-enum-ciphers',
+                '-oX',
+                '-',
+                f"-p {','.join(map(str, check_certificate_ports))}",
+                address
+            ]
 
-        except ET.ParseError as e:
-            raise CheckException(f'Nmap parse error: {e.msg}')
+            response_data = {}
+            try:
+                data = await run(params)
+                response_data = parse(data, address)
+                if not response_data:
+                    logging.warning(
+                        f'Both sslCert and sslEnumCiphers empty; {asset}')
+                    raise IgnoreResultException()
 
-        except (CheckException, IgnoreResultException):
-            raise
+            except ET.ParseError as e:
+                raise CheckException(f'Nmap parse error: {e.msg}')
 
-        except Exception as e:
-            error_msg = str(e) or type(e).__name__
-            logging.exception(f'query error: {error_msg}; {asset}')
-            raise CheckException(error_msg)
+            except (CheckException, IgnoreResultException):
+                raise
 
-        raise NoCountException('do not count certificates', response_data)
-    else:
-        # return empty check result; types are optional
-        raise NoCountException('no certificates', {})
+            except Exception as e:
+                error_msg = str(e) or type(e).__name__
+                logging.exception(f'query error: {error_msg}; {asset}')
+                raise CheckException(error_msg)
+
+            raise NoCountException('do not count certificates', response_data)
+        else:
+            # return empty check result; types are optional
+            raise NoCountException('no certificates', {})
