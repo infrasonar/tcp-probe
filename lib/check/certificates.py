@@ -37,11 +37,20 @@ def _parse_cert_info(node, host, port):
     expires_in = not_after - now
 
     name = f'{host}:{port}'
+
+    subject_elem = node.findall("table[@key='subject']/elem")
+    common_name = next((
+        e.text for e in subject_elem
+        if e.attrib.get('key') == 'commonName'), "")
+
     return [{
         'name': name,
+        'requestedHost': host,
+        'subjectCN': common_name,
+        'hostMatch': common_name.lower() == host.lower(),
         'subject': '/'.join(map(
             lambda elem: f'{elem.attrib["key"]}={elem.text}',
-            node.findall("table[@key='subject']/elem")
+            subject_elem
         )),
         'issuer': '/'.join(map(
             lambda elem: f'{elem.attrib["key"]}={elem.text}',

@@ -1,4 +1,4 @@
-FROM ghcr.io/infrasonar/python:3.12.9
+FROM ghcr.io/infrasonar/python:3.14.3
 RUN apt update && apt install -y nmap
 ADD . /code
 WORKDIR /code
